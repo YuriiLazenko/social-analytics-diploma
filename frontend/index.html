@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Соціальна аналітика — дипломний проєкт</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"
+      defer
+    ></script>
+    <script src="/js/app.js" defer></script>
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <header class="header">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">◇</span>
+        <div>
+          <h1>Аналітика соціальних мереж</h1>
+          <p class="tagline">
+            Збір текстів → очищення → NLP → візуалізація (дипломна ІС)
+          </p>
+        </div>
+      </div>
+      <div class="health" id="healthStatus" title="Статус сервісів">…</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel search-panel">
+        <h2>Запит аналізу</h2>
+        <form id="analyzeForm" class="analyze-form">
+          <label class="field">
+            <span>Ключове слово / тема</span>
+            <input
+              type="text"
+              name="keyword"
+              id="keyword"
+              placeholder="Наприклад: Tesla, відновлювана енергетика…"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <div class="row">
+            <label class="field small">
+              <span>Ліміт постів</span>
+              <input type="number" name="limit" id="limit" value="120" min="20" max="500" />
+            </label>
+            <label class="field small">
+              <span>Мова</span>
+              <select name="lang" id="lang">
+                <option value="all">Усі</option>
+                <option value="uk">Українська</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+          </div>
+          <fieldset class="sources">
+            <legend>Джерела</legend>
+            <label><input type="checkbox" name="src_reddit" checked /> Reddit</label>
+            <label><input type="checkbox" name="src_tg" checked /> Telegram</label>
+            <label><input type="checkbox" name="src_rss" checked /> RSS</label>
+            <label><input type="checkbox" name="src_x" /> X</label>
+            <label><input type="checkbox" name="src_mock" /> Twitter</label>
+            <label><input type="checkbox" name="src_fb" /> Facebook / Instagram</label>
+          </fieldset>
+          <button type="submit" class="btn primary" id="submitBtn">
+            Analyze
+          </button>
+        </form>
+        <p class="hint">
+          За замовчуванням демо-дані вимкнено. Додайте ключі Reddit, Telegram,
+          <code>RSS_FEEDS</code>, Bearer token для X (<code>TWITTER_BEARER_TOKEN</code>). Демо:
+          <code>ALLOW_MOCK=1</code> у
+          <code>.env</code>. Деталі в README.
+        </p>
+      </section>
+
+      <section class="panel status-panel" id="statusPanel" hidden>
+        <h2>ETL-пайплайн</h2>
+        <ol class="etl-list" id="etlStages"></ol>
+        <div class="metrics" id="etlMetrics"></div>
+      </section>
+
+      <section class="panel results" id="resultsPanel" hidden>
+        <h2>Результати</h2>
+        <p class="summary-line" id="summaryLine"></p>
+
+        <div class="charts">
+          <div class="chart-box">
+            <h3>Тональність (%)</h3>
+            <canvas id="sentimentChart" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Емоційні сигнали (емодзі/реакції)</h3>
+            <p class="hint-inline" id="emotionHint">
+              ❤️ / 🔥 / 👍 → позитив, 😡 / 👎 / 💔 → негатив, 😐 / 😶 / 🤔 → нейтрально
+            </p>
+            <div class="emotion-metrics" id="emotionMetrics"></div>
+            <div class="emotion-top" id="emotionTop"></div>
+          </div>
+          <div class="chart-box wide">
+            <h3>Активність за днями</h3>
+            <canvas id="trendChart" height="240"></canvas>
+          </div>
+        </div>
+
+        <div class="charts">
+          <div class="chart-box">
+            <h3>Топ слів (частота)</h3>
+            <canvas id="wordsChart" height="280"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Словесна хмара</h3>
+            <div id="wordCloud" class="wordcloud" aria-label="Хмара слів"></div>
+          </div>
+        </div>
+
+        <div class="keywords-block">
+          <h3>Ключові фрази (KeyBERT) / TF-IDF</h3>
+          <div class="chips" id="keywordChips"></div>
+          <p class="hint-inline" id="keywordAltHint" hidden></p>
+        </div>
+
+        <div class="topics-block" id="topicsBlock" hidden>
+          <h3>Тематичне моделювання (LDA)</h3>
+          <ul class="topics-list" id="topicsList"></ul>
+        </div>
+
+        <div class="table-block">
+          <h3>Фрагменти постів</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Джерело</th>
+                  <th>Мова</th>
+                  <th>Тональність</th>
+                  <th>Текст</th>
+                </tr>
+              </thead>
+              <tbody id="postsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Інформаційна система для аналітичної платформи соцмереж · NLP + ETL</span>
+    </footer>
+  </body>
+</html>

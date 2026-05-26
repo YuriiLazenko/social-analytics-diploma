@@ -1,0 +1,15 @@
+**/.git
+**/.gitignore
+**/node_modules
+**/__pycache__
+**/.venv
+**/*.pyc
+**/.DS_Store
+.env
+.env.*
+nlp-service
+backend/data
+backend/node_modules
+**/*.session
+**/*.session-journal
+*.md

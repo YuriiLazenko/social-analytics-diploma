@@ -1,0 +1,43 @@
+# --- Секрети / локальна конфігурація ---
+.env
+.env.local
+.env.*.local
+nlp-service/.env
+backend/.env
+
+# --- Сесії / артефакти Telethon ---
+*.session
+*.session-journal
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.nlp_venv/
+nlp-service/.venv/
+*.egg-info/
+
+# --- Кеші / тимчасові файли ---
+.cache/
+*.sqlite
+backend/data/
+*.log
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- macOS / Windows ---
+.DS_Store
+Thumbs.db

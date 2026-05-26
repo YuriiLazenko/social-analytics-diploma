@@ -1,0 +1,93 @@
+name: social-analytics
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  nlp:
+    build:
+      context: ./nlp-service
+    image: social-analytics/nlp:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      HF_HOME: /models
+      TRANSFORMERS_CACHE: /models
+      SENTENCE_TRANSFORMERS_HOME: /models
+      # Telethon збереже файл сесії у спільному томі, а не поряд з кодом
+      TELEGRAM_SESSION_DIR: /app/sessions
+    volumes:
+      - hf-cache:/models
+      - tg-session:/app/sessions
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build:
+      context: ./nlp-service
+    image: social-analytics/nlp:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      HF_HOME: /models
+      TRANSFORMERS_CACHE: /models
+      SENTENCE_TRANSFORMERS_HOME: /models
+    volumes:
+      - hf-cache:/models
+    depends_on:
+      redis:
+        condition: service_healthy
+      nlp:
+        condition: service_started
+    command: ["python", "worker.py"]
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: social-analytics/backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      NLP_SERVICE_URL: http://nlp:8000
+      # Якщо встановити REDIS_URL — backend піде через чергу до worker.py.
+      # Закоментуйте рядок нижче, щоб ходити напряму HTTP до FastAPI.
+      REDIS_URL: redis://redis:6379
+      # Перший запит у worker довгий (вперше тягне моделі з HuggingFace ~2 хв),
+      # тому ставимо запас з головою — наступні запити вже миттєві.
+      NLP_JOB_TIMEOUT_MS: "600000"
+    volumes:
+      - backend-data:/app/backend/data
+    ports:
+      - "3000:3000"
+    depends_on:
+      nlp:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+  hf-cache:
+  tg-session:
+  backend-data:
